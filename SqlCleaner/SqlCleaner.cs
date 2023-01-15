@@ -17,7 +17,9 @@ namespace SqlCleaner
         public SqlCleaner()
         {
             InitializeComponent();
-            Icon = Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            Icon = Icon.ExtractAssociatedIcon(
+                System.Reflection.Assembly.GetExecutingAssembly().Location
+            );
         }
 
         private void cleanBtn_Click(object sender, EventArgs e)
@@ -27,21 +29,24 @@ namespace SqlCleaner
                 string sql = "";
                 TSqlParser parser = new TSql120Parser(true);
                 IList<ParseError> parseErrors;
-                TSqlFragment sqlFragment = parser.Parse(new StringReader(inputText.Text), out parseErrors);
+                TSqlFragment sqlFragment = parser.Parse(
+                    new StringReader(inputText.Text),
+                    out parseErrors
+                );
 
                 TSqlScript script = (TSqlScript)sqlFragment;
                 foreach (var batch in script.Batches)
                 {
-                    foreach (var stmt in batch.Statements.OfType<Microsoft.SqlServer.TransactSql.ScriptDom.ExecuteStatement>())
+                    foreach (
+                        var stmt in batch.Statements.OfType<Microsoft.SqlServer.TransactSql.ScriptDom.ExecuteStatement>()
+                    )
                     {
-
                         var paramterers = stmt.ExecuteSpecification.ExecutableEntity.Parameters;
 
                         var paramaterHeader = ((StringLiteral)paramterers[1].ParameterValue).Value;
                         var queryHeader = ((StringLiteral)paramterers[2].ParameterValue).Value;
 
                         var x = paramterers[3].ParameterValue.GetType().ToString();
-
 
                         var paramsArray = paramaterHeader.Split(',');
 
@@ -50,19 +55,41 @@ namespace SqlCleaner
                             var paramOffset = i + 3;
                             if (paramterers[paramOffset].ParameterValue is StringLiteral)
                             {
-                                paramsArray[i] = paramsArray[i] + string.Format(" = '{0}',", ((StringLiteral)paramterers[paramOffset].ParameterValue).Value);
+                                paramsArray[i] =
+                                    paramsArray[i]
+                                    + string.Format(
+                                        " = '{0}',",
+                                        (
+                                            (StringLiteral)paramterers[paramOffset].ParameterValue
+                                        ).Value
+                                    );
                             }
                             else if (paramterers[paramOffset].ParameterValue is IntegerLiteral)
                             {
-                                paramsArray[i] = paramsArray[i] + string.Format(" = {0},", ((IntegerLiteral)paramterers[paramOffset].ParameterValue).Value);
+                                paramsArray[i] =
+                                    paramsArray[i]
+                                    + string.Format(
+                                        " = {0},",
+                                        (
+                                            (IntegerLiteral)paramterers[paramOffset].ParameterValue
+                                        ).Value
+                                    );
                             }
                             else if (paramterers[paramOffset].ParameterValue is NumericLiteral)
                             {
-                                paramsArray[i] = paramsArray[i] + string.Format(" = {0},", ((NumericLiteral)paramterers[paramOffset].ParameterValue).Value);
+                                paramsArray[i] =
+                                    paramsArray[i]
+                                    + string.Format(
+                                        " = {0},",
+                                        (
+                                            (NumericLiteral)paramterers[paramOffset].ParameterValue
+                                        ).Value
+                                    );
                             }
                         }
 
-                        var declareStmt = "DECLARE " + string.Join(Environment.NewLine, paramsArray);
+                        var declareStmt =
+                            "DECLARE " + string.Join(Environment.NewLine, paramsArray);
                         declareStmt = declareStmt.Remove(declareStmt.Length - 1) + ";";
                         sql = declareStmt + Environment.NewLine + queryHeader;
                     }
