@@ -22,45 +22,57 @@ namespace SqlCleaner
 
         private void cleanBtn_Click(object sender, EventArgs e)
         {
-            TSqlParser parser = new TSql120Parser(true);
-            IList<ParseError> parseErrors;
-            TSqlFragment sqlFragment = parser.Parse(new StringReader(inputText.Text), out parseErrors);
-
-            TSqlScript script = (TSqlScript)sqlFragment;
-            var batch = script.Batches[0];
-
-            ExecuteStatement stmt = batch.Statements.OfType<Microsoft.SqlServer.TransactSql.ScriptDom.ExecuteStatement>().First();
-
-            var parameters = stmt.ExecuteSpecification.ExecutableEntity.Parameters;
-
-            var parameterHeader = ((StringLiteral)parameters[1].ParameterValue).Value;
-            var queryHeader = ((StringLiteral)parameters[2].ParameterValue).Value;
-
-            var paramsArray = parameterHeader.Split(',');
-
-            for (int i = 0; i < paramsArray.Length; i++)
+            try
             {
-                var paramOffset = i + 3;
-                if (parameters[paramOffset].ParameterValue.GetType().ToString() == "Microsoft.SqlServer.TransactSql.ScriptDom.StringLiteral")
+                string sql = "";
+                TSqlParser parser = new TSql120Parser(true);
+                IList<ParseError> parseErrors;
+                TSqlFragment sqlFragment = parser.Parse(new StringReader(inputText.Text), out parseErrors);
+
+                TSqlScript script = (TSqlScript)sqlFragment;
+                foreach (var batch in script.Batches)
                 {
-                    paramsArray[i] = paramsArray[i] + string.Format(" = '{0}',", ((StringLiteral)parameters[paramOffset].ParameterValue).Value);
+                    foreach (var stmt in batch.Statements.OfType<Microsoft.SqlServer.TransactSql.ScriptDom.ExecuteStatement>())
+                    {
+
+                        var paramterers = stmt.ExecuteSpecification.ExecutableEntity.Parameters;
+
+                        var paramaterHeader = ((StringLiteral)paramterers[1].ParameterValue).Value;
+                        var queryHeader = ((StringLiteral)paramterers[2].ParameterValue).Value;
+
+                        var x = paramterers[3].ParameterValue.GetType().ToString();
+
+
+                        var paramsArray = paramaterHeader.Split(',');
+
+                        for (int i = 0; i < paramsArray.Length; i++)
+                        {
+                            var paramOffset = i + 3;
+                            if (paramterers[paramOffset].ParameterValue is StringLiteral)
+                            {
+                                paramsArray[i] = paramsArray[i] + string.Format(" = '{0}',", ((StringLiteral)paramterers[paramOffset].ParameterValue).Value);
+                            }
+                            else if (paramterers[paramOffset].ParameterValue is IntegerLiteral)
+                            {
+                                paramsArray[i] = paramsArray[i] + string.Format(" = {0},", ((IntegerLiteral)paramterers[paramOffset].ParameterValue).Value);
+                            }
+                            else if (paramterers[paramOffset].ParameterValue is NumericLiteral)
+                            {
+                                paramsArray[i] = paramsArray[i] + string.Format(" = {0},", ((NumericLiteral)paramterers[paramOffset].ParameterValue).Value);
+                            }
+                        }
+
+                        var declareStmt = "DECLARE " + string.Join(Environment.NewLine, paramsArray);
+                        declareStmt = declareStmt.Remove(declareStmt.Length - 1) + ";";
+                        sql = declareStmt + Environment.NewLine + queryHeader;
+                    }
                 }
-                else if (parameters[paramOffset].ParameterValue.GetType().ToString() == "Microsoft.SqlServer.TransactSql.ScriptDom.IntegerLiteral")
-                {
-                    paramsArray[i] = paramsArray[i] + string.Format(" = {0},", ((IntegerLiteral)parameters[paramOffset].ParameterValue).Value);
-                }
-                else if (parameters[paramOffset].ParameterValue.GetType().ToString() == "Microsoft.SqlServer.TransactSql.ScriptDom.NumericLiteral")
-                {
-                    paramsArray[i] = paramsArray[i] + string.Format(" = {0},", ((NumericLiteral)parameters[paramOffset].ParameterValue).Value);
-                }
+                inputText.Text = sql;
             }
-
-            var declareStmt = "DECLARE " + string.Join("\r\n\t", paramsArray);
-            declareStmt = declareStmt.Remove(declareStmt.Length - 1) + ";";
-            var finalQuery = declareStmt + "\r\n\r\n" + queryHeader;
-
-            inputText.Text = finalQuery;
-
+            catch
+            {
+                inputText.Text = "Error in query";
+            }
         }
 
         private void copyBtn_Click(object sender, EventArgs e)
